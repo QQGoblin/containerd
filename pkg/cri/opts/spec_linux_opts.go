@@ -67,13 +67,22 @@ func WithMounts(osi osinterface.OS, config *runtime.ContainerConfig, extra []*ru
 		// shadow other mounts.
 		sort.Sort(orderedMounts(mounts))
 
-		// Mount cgroup into the container as readonly, which inherits docker's behavior.
-		s.Mounts = append(s.Mounts, runtimespec.Mount{
-			Source:      "cgroup",
-			Destination: "/sys/fs/cgroup",
-			Type:        "cgroup",
-			Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
-		})
+		if IsCgroup2UnifiedMode() {
+			s.Mounts = append(s.Mounts, runtimespec.Mount{
+				Source:      "cgroup",
+				Destination: "/sys/fs/cgroup",
+				Type:        "cgroup",
+				Options:     []string{"private", "rw"},
+			})
+		} else {
+			// Mount cgroup into the container as readonly, which inherits docker's behavior.
+			s.Mounts = append(s.Mounts, runtimespec.Mount{
+				Source:      "cgroup",
+				Destination: "/sys/fs/cgroup",
+				Type:        "cgroup",
+				Options:     []string{"nosuid", "noexec", "nodev", "relatime", "ro"},
+			})
+		}
 
 		// Copy all mounts from default mounts, except for
 		// - mounts overridden by supplied mount;
