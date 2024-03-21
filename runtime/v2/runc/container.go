@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/containerd/containerd/oci"
 	"os"
 	"path/filepath"
 	"sync"
@@ -108,6 +109,17 @@ func NewContainer(ctx context.Context, platform stdio.Platform, r *task.CreateTa
 			Options: pm.Options,
 		})
 	}
+
+	newMounts, err := HookMounts(mounts, filepath.Join(r.Bundle, oci.ConfigFilename))
+	if err != nil {
+		logrus.WithError(err).Warn("hook mount failed, skip")
+	}
+
+	if newMounts != nil {
+		logrus.WithField("mount", newMounts).Info("hook mount success")
+		mounts = newMounts
+	}
+
 	defer func() {
 		if retErr != nil {
 			if err := mount.UnmountMounts(mounts, rootfs, 0); err != nil {
@@ -118,6 +130,8 @@ func NewContainer(ctx context.Context, platform stdio.Platform, r *task.CreateTa
 	if err := mount.All(mounts, rootfs); err != nil {
 		return nil, fmt.Errorf("failed to mount rootfs component: %w", err)
 	}
+
+	WriteMounts(filepath.Join(r.Bundle, MountConfigName), mounts)
 
 	p, err := newInit(
 		ctx,
