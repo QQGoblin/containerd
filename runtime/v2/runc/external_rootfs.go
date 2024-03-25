@@ -170,7 +170,9 @@ func externalDevice(c *ExternalRootFSConfig) ([]mount.Mount, error) {
 			return nil, err
 		}
 
-		fsType = ed.FilesystemType
+		if ed.FilesystemType != "" {
+			fsType = ed.FilesystemType
+		}
 		device = ed.Device
 	}
 
