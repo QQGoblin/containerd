@@ -42,6 +42,12 @@ type ExternalRootFSConfig struct {
 	OverlayUpper string               `json:"EXTERNAL_ROOTFS_OVERLAY_UPPER_PATH"`
 	Device       string               `json:"EXTERNAL_ROOTFS_DEVICE_NAME"`
 	DeviceFSType string               `json:"EXTERNAL_ROOTFS_DEVICE_FSTYPE"`
+	DeviceConfig string               `json:"EXTERNAL_ROOTFS_DEVICE_CONFIG"`
+}
+
+type ExtDevice struct {
+	Device         string `json:"device"`
+	FilesystemType string `json:"fs_type"`
 }
 
 func ReadExternalRootFSConfigFromENV(configFile string) (*ExternalRootFSConfig, error) {
@@ -138,16 +144,52 @@ func HookMounts(mounts []mount.Mount, configPath string) ([]mount.Mount, error) 
 		return []mount.Mount{newMount}, nil
 	}
 
-	if extRootfsConfig.Driver == ExternalRootFSDriverDevice && extRootfsConfig.Device != "" {
-
-		newMount := mount.Mount{
-			Type:    extRootfsConfig.DeviceFSType,
-			Source:  extRootfsConfig.Device,
-			Options: []string{"rw"},
-		}
-
-		return []mount.Mount{newMount}, nil
+	if extRootfsConfig.Driver == ExternalRootFSDriverDevice {
+		return externalDevice(extRootfsConfig)
 	}
 
 	return mounts, nil
+}
+
+func externalDevice(c *ExternalRootFSConfig) ([]mount.Mount, error) {
+
+	var (
+		fsType = "xfs"
+		device = ""
+	)
+
+	if c.DeviceConfig != "" {
+
+		ed := ExtDevice{}
+
+		b, err := os.ReadFile(c.DeviceConfig)
+		if err != nil {
+			return nil, err
+		}
+		if err = json.Unmarshal(b, &ed); err != nil {
+			return nil, err
+		}
+
+		fsType = ed.FilesystemType
+		device = ed.Device
+	}
+
+	if c.DeviceFSType != "" {
+		fsType = c.DeviceFSType
+	}
+
+	if c.Device != "" {
+		device = c.Device
+	}
+
+	if device == "" {
+		return nil, fmt.Errorf("use external deivce as rootfs, but config is empty")
+	}
+
+	return []mount.Mount{{
+		Type:    fsType,
+		Source:  device,
+		Options: []string{"rw"},
+	}}, nil
+
 }
