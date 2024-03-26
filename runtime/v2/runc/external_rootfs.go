@@ -37,12 +37,13 @@ const (
 )
 
 type ExternalRootFSConfig struct {
-	Driver       ExternalRootFSDriver `json:"EXTERNAL_ROOTFS_DRIVER"`
-	OverlayLower string               `json:"EXTERNAL_ROOTFS_OVERLAY_LOWER_PATH"`
-	OverlayUpper string               `json:"EXTERNAL_ROOTFS_OVERLAY_UPPER_PATH"`
-	Device       string               `json:"EXTERNAL_ROOTFS_DEVICE_NAME"`
-	DeviceFSType string               `json:"EXTERNAL_ROOTFS_DEVICE_FSTYPE"`
-	DeviceConfig string               `json:"EXTERNAL_ROOTFS_DEVICE_CONFIG"`
+	Driver          ExternalRootFSDriver `json:"EXTERNAL_ROOTFS_DRIVER"`
+	OverlayLower    string               `json:"EXTERNAL_ROOTFS_OVERLAY_LOWER_PATH"`
+	OverlayUpper    string               `json:"EXTERNAL_ROOTFS_OVERLAY_UPPER_PATH"`
+	Device          string               `json:"EXTERNAL_ROOTFS_DEVICE_NAME"`
+	DeviceFSType    string               `json:"EXTERNAL_ROOTFS_DEVICE_FSTYPE"`
+	DeviceConfig    string               `json:"EXTERNAL_ROOTFS_DEVICE_CONFIG"`
+	DeviceMountOpts string               `json:"EXTERNAL_ROOTFS_DEVICE_MOUNT_OPTS"`
 }
 
 type ExtDevice struct {
@@ -154,8 +155,9 @@ func HookMounts(mounts []mount.Mount, configPath string) ([]mount.Mount, error) 
 func externalDevice(c *ExternalRootFSConfig) ([]mount.Mount, error) {
 
 	var (
-		fsType = "xfs"
-		device = ""
+		fsType   = "xfs"
+		device   = ""
+		mountOpt = []string{"rw"}
 	)
 
 	if c.DeviceConfig != "" {
@@ -184,14 +186,20 @@ func externalDevice(c *ExternalRootFSConfig) ([]mount.Mount, error) {
 		device = c.Device
 	}
 
+	if c.DeviceMountOpts != "" {
+		mountOpt = strings.Split(c.DeviceMountOpts, ",")
+	}
+
 	if device == "" {
 		return nil, fmt.Errorf("use external deivce as rootfs, but config is empty")
 	}
 
+	// TODO : 这里需要判断 device 设备是否存在
+
 	return []mount.Mount{{
 		Type:    fsType,
 		Source:  device,
-		Options: []string{"rw"},
+		Options: mountOpt,
 	}}, nil
 
 }
